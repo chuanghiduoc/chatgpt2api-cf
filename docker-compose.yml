@@ -3,7 +3,8 @@ services:
     image: ghcr.io/chuanghiduoc/chatgpt2api-cf:latest
     restart: unless-stopped
     ports:
-      - "${HOST_PORT:-8787}:8787"
+      # Bind localhost only - use tunnel/nginx for public access
+      - "127.0.0.1:${HOST_PORT:-8787}:8787"
     environment:
       API_KEYS: ${API_KEYS:?set API_KEYS in .env}
       DEVICE_POOL_SIZE: ${DEVICE_POOL_SIZE:-3}
