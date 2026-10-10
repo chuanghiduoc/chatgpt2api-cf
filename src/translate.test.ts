@@ -143,8 +143,8 @@ describe('buildAnonRequest', () => {
     });
   });
 
-  it('falls back to auto for empty model', () => {
-    expect(buildAnonRequest('', 'hi').model).toBe('auto');
+  it('falls back to default model for empty model', () => {
+    expect(buildAnonRequest('', 'hi').model).toBe('gpt-6.1-sol');
   });
 
   it('defaults forceUseSearch to true and honors search=false', () => {
@@ -324,9 +324,9 @@ describe('genID', () => {
 
 describe('wantsStreamUsage', () => {
   it('detects include_usage in request object or JSON', () => {
-    expect(wantsStreamUsage({ model: 'auto', messages: [], stream_options: { include_usage: true } })).toBe(true);
-    expect(wantsStreamUsage({ model: 'auto', messages: [], stream_options: { include_usage: false } })).toBe(false);
-    expect(wantsStreamUsage({ model: 'auto', messages: [] })).toBe(false);
+    expect(wantsStreamUsage({ model: 'gpt-6.1-sol', messages: [], stream_options: { include_usage: true } })).toBe(true);
+    expect(wantsStreamUsage({ model: 'gpt-6.1-sol', messages: [], stream_options: { include_usage: false } })).toBe(false);
+    expect(wantsStreamUsage({ model: 'gpt-6.1-sol', messages: [] })).toBe(false);
     expect(wantsStreamUsage(null)).toBe(false);
     expect(wantsStreamUsage(undefined)).toBe(false);
     expect(wantsStreamUsage('{"stream_options":{"include_usage":true}}')).toBe(true);

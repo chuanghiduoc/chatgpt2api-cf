@@ -131,7 +131,7 @@ describe('Hono Application (src/index.ts)', () => {
       const data: any = await res.json();
       expect(data.status).toBe('ok');
       expect(data.service).toBe('chatgpt2api-cf');
-      expect(data.models).toEqual(['gpt-5-5', 'gpt-5-6', 'auto']);
+      expect(data.models.length).toBeGreaterThan(0);
       expect(data.docs).toBeUndefined();
     });
 
@@ -156,25 +156,27 @@ describe('Hono Application (src/index.ts)', () => {
       expect(res.status).toBe(200);
       const data: any = await res.json();
       expect(data.object).toBe('list');
-      expect(data.data.length).toBe(3);
+      expect(data.data.length).toBeGreaterThan(20); // extended + upstream
+      // First model should be from extended list
+      expect(data.data[0].id).toBe('gpt-6.1-sol');
       expect(data.data[0]).toEqual({
-        id: 'gpt-5-5',
+        id: 'gpt-6.1-sol',
         object: 'model',
         created: 1700000000,
         owned_by: 'openai',
       });
-      expect(data.data[1].id).toBe('gpt-5-6');
-      expect(data.data[2].id).toBe('auto');
     });
 
-    it('falls back to ["auto"] when upstream catalog fetch fails', async () => {
+    it('falls back to extended models when upstream catalog fetch fails', async () => {
       mockClient.modelsHandler = async () => {
         throw new Error('upstream down');
       };
       const res = await app.request('/v1/models', { method: 'GET' }, mockEnv);
       expect(res.status).toBe(200);
       const data: any = await res.json();
-      expect(data.data.map((m: any) => m.id)).toEqual(['auto']);
+      // Should return extended models list
+      expect(data.data.length).toBeGreaterThan(20);
+      expect(data.data[0].id).toBe('gpt-6.1-sol');
     });
 
     it('serves the catalog from KV cache without hitting upstream twice', async () => {
@@ -186,7 +188,8 @@ describe('Hono Application (src/index.ts)', () => {
       const res = await app.request('/v1/models', { method: 'GET' }, mockEnv);
       expect(res.status).toBe(200);
       const data: any = await res.json();
-      expect(data.data.map((m: any) => m.id)).toEqual(['gpt-5-6', 'auto']);
+      // Merged with extended models
+      expect(data.data.length).toBeGreaterThan(20);
       expect(mockClient.modelsCalls).toBe(1);
     });
   });

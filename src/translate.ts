@@ -4,6 +4,7 @@ import type {
   ChatCompletionResponse,
   ChatCompletionChunk,
 } from './types';
+import { DEFAULT_MODEL } from './catalog';
 
 /**
  * Extracts plain text from an OpenAI content field, whether it is a string
@@ -136,7 +137,7 @@ export function buildAnonRequest(
     ],
     parentMessageId: null,
     conversationId: null,
-    model: model || 'auto',
+    model: model || DEFAULT_MODEL,
     historyAndTrainingDisabled: false,
     conversationMode: { kind: 'primary_assistant' },
     forceUseSearch: options?.search !== false,
