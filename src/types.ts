@@ -112,17 +112,40 @@ export interface ChatCompletionChoice {
   finish_reason: 'stop' | 'length' | 'tool_calls' | null;
 }
 
+export interface TokenDetails {
+  reasoning_tokens?: number;
+  audio_tokens?: number;
+  accepted_prediction_tokens?: number;
+  rejected_prediction_tokens?: number;
+  text_tokens?: number;
+}
+
+export interface PromptTokenDetails {
+  cached_tokens?: number;
+  audio_tokens?: number;
+  image_tokens?: number;
+  text_tokens?: number;
+}
+
+export interface ChatCompletionUsage {
+  prompt_tokens: number;
+  completion_tokens: number;
+  total_tokens: number;
+  completion_tokens_details?: TokenDetails;
+  prompt_tokens_details?: PromptTokenDetails;
+}
+
 export interface ChatCompletionResponse {
   id: string;
   object: 'chat.completion';
   created: number;
   model: string;
   choices: ChatCompletionChoice[];
-  usage: {
-    prompt_tokens: number;
-    completion_tokens: number;
-    total_tokens: number;
-  };
+  usage: ChatCompletionUsage;
+  system_fingerprint?: string;
+  service_tier?: string | null;
+  /** Upstream request id for debugging */
+  x_request_id?: string;
 }
 
 export interface ChatCompletionChunkChoice {
@@ -141,11 +164,11 @@ export interface ChatCompletionChunk {
   created: number;
   model: string;
   choices: ChatCompletionChunkChoice[];
-  usage?: {
-    prompt_tokens: number;
-    completion_tokens: number;
-    total_tokens: number;
-  };
+  usage?: ChatCompletionUsage;
+  system_fingerprint?: string;
+  service_tier?: string | null;
+  /** Upstream request id for debugging */
+  x_request_id?: string;
 }
 
 export interface SearchSource {

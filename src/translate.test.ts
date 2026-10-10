@@ -253,11 +253,11 @@ describe('buildUsageChunk', () => {
     expect(chunk.id).toBe('chatcmpl-stream');
     expect(chunk.object).toBe('chat.completion.chunk');
     expect(chunk.choices).toEqual([]);
-    expect(chunk.usage).toEqual({
-      prompt_tokens: 10,
-      completion_tokens: 20,
-      total_tokens: 30,
-    });
+    expect(chunk.usage?.prompt_tokens).toBe(10);
+    expect(chunk.usage?.completion_tokens).toBe(20);
+    expect(chunk.usage?.total_tokens).toBe(30);
+    expect(chunk.usage?.completion_tokens_details?.text_tokens).toBe(20);
+    expect(chunk.usage?.prompt_tokens_details?.text_tokens).toBe(10);
   });
 });
 
@@ -282,11 +282,11 @@ describe('buildOpenAICompletion', () => {
       content: 'Hello there!',
     });
     expect(resp.choices[0].finish_reason).toBe('stop');
-    expect(resp.usage).toEqual({
-      prompt_tokens: 10,
-      completion_tokens: 20,
-      total_tokens: 30,
-    });
+    expect(resp.usage.prompt_tokens).toBe(10);
+    expect(resp.usage.completion_tokens).toBe(20);
+    expect(resp.usage.total_tokens).toBe(30);
+    expect(resp.usage.completion_tokens_details?.text_tokens).toBe(20);
+    expect(resp.usage.prompt_tokens_details?.text_tokens).toBe(10);
   });
 });
 

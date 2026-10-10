@@ -25,6 +25,7 @@ import {
   countRoughTokens,
   genID,
   wantsStreamUsage,
+  UpstreamMetadata,
 } from './translate';
 
 /**
@@ -73,6 +74,8 @@ export class StreamProcessor {
   public endedTurn = false;
   /** True once the upstream model ran its own web search during this reply. */
   public usedWebSearch = false;
+  /** Metadata from the upstream response (resolved_model_slug, cot_version, etc.) */
+  public upstreamMetadata: UpstreamMetadata = {};
 
   constructor(
     model: string,
@@ -141,6 +144,35 @@ export class StreamProcessor {
       ev.message.end_turn === true
     ) {
       this.endedTurn = true;
+    }
+
+    // Extract upstream metadata for OpenAI response enrichment
+    const meta = ev.message?.metadata;
+    if (meta) {
+      if (meta.resolved_model_slug) {
+        this.upstreamMetadata.resolved_model_slug = meta.resolved_model_slug;
+      }
+      if (meta.model_slug) {
+        this.upstreamMetadata.model_slug = meta.model_slug;
+      }
+      if (meta.default_model_slug) {
+        this.upstreamMetadata.default_model_slug = meta.default_model_slug;
+      }
+      if (meta.cot_version) {
+        this.upstreamMetadata.cot_version = meta.cot_version;
+      }
+      if (meta.finish_details) {
+        this.upstreamMetadata.finish_details = meta.finish_details;
+      }
+      if (typeof meta.server_ttfvt_ms === 'number') {
+        this.upstreamMetadata.server_ttfvt_ms = meta.server_ttfvt_ms;
+      }
+      if (meta.request_id) {
+        this.upstreamMetadata.request_id = meta.request_id;
+      }
+      if (typeof meta.is_complete === 'boolean') {
+        this.upstreamMetadata.is_complete = meta.is_complete;
+      }
     }
 
     const parts: string[] = [];
@@ -295,7 +327,8 @@ export class StreamProcessor {
           this.created,
           this.model,
           promptTokens,
-          completionTokens
+          completionTokens,
+          this.upstreamMetadata
         )
       );
     }
@@ -506,6 +539,7 @@ export async function aggregateNonStreamWithSignals(
   let emitted = '';
   let withheld = '';
   let withheldGenui = '';
+  const upstreamMetadata: UpstreamMetadata = {};
 
   if (resp.body) {
     const reader = resp.body.getReader();
@@ -532,6 +566,34 @@ export async function aggregateNonStreamWithSignals(
               parsed.message.channel !== 'final';
             if (isHistoryEcho) {
               return;
+            }
+          }
+          // Extract upstream metadata for OpenAI response enrichment
+          const meta = parsed.message?.metadata;
+          if (meta) {
+            if (meta.resolved_model_slug) {
+              upstreamMetadata.resolved_model_slug = meta.resolved_model_slug;
+            }
+            if (meta.model_slug) {
+              upstreamMetadata.model_slug = meta.model_slug;
+            }
+            if (meta.default_model_slug) {
+              upstreamMetadata.default_model_slug = meta.default_model_slug;
+            }
+            if (meta.cot_version) {
+              upstreamMetadata.cot_version = meta.cot_version;
+            }
+            if (meta.finish_details) {
+              upstreamMetadata.finish_details = meta.finish_details;
+            }
+            if (typeof meta.server_ttfvt_ms === 'number') {
+              upstreamMetadata.server_ttfvt_ms = meta.server_ttfvt_ms;
+            }
+            if (meta.request_id) {
+              upstreamMetadata.request_id = meta.request_id;
+            }
+            if (typeof meta.is_complete === 'boolean') {
+              upstreamMetadata.is_complete = meta.is_complete;
             }
           }
           const parts: string[] = [];
@@ -594,7 +656,7 @@ export async function aggregateNonStreamWithSignals(
   // finish_reason "tool_calls".
   const toolMsg = buildToolCallsChatMessage(finalText);
   if (toolMsg) {
-    const result = {
+    const result: ChatCompletionResponse = {
       id: genID('chatcmpl-'),
       object: 'chat.completion',
       created: Math.floor(Date.now() / 1000),
@@ -610,8 +672,27 @@ export async function aggregateNonStreamWithSignals(
         prompt_tokens: promptTokens,
         completion_tokens: completionTokens,
         total_tokens: promptTokens + completionTokens,
+        completion_tokens_details: {
+          reasoning_tokens: 0,
+          audio_tokens: 0,
+          accepted_prediction_tokens: 0,
+          rejected_prediction_tokens: 0,
+          text_tokens: completionTokens,
+        },
+        prompt_tokens_details: {
+          cached_tokens: 0,
+          audio_tokens: 0,
+          image_tokens: 0,
+          text_tokens: promptTokens,
+        },
       },
-    } as any;
+    };
+    if (upstreamMetadata.resolved_model_slug) {
+      result.system_fingerprint = `fp_${upstreamMetadata.resolved_model_slug}_${upstreamMetadata.cot_version || 'v1'}`;
+    }
+    if (upstreamMetadata.request_id) {
+      result.x_request_id = upstreamMetadata.request_id;
+    }
     return { result, usedWebSearch };
   }
 
@@ -621,7 +702,9 @@ export async function aggregateNonStreamWithSignals(
     model,
     finalText,
     promptTokens,
-    completionTokens
+    completionTokens,
+    'stop',
+    upstreamMetadata
   );
   return { result, usedWebSearch };
 }

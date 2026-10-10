@@ -3,8 +3,23 @@ import type {
   ChatCompletionRequest,
   ChatCompletionResponse,
   ChatCompletionChunk,
+  ChatCompletionUsage,
 } from './types';
 import { DEFAULT_MODEL } from './catalog';
+
+/**
+ * Upstream metadata extracted from SSE response
+ */
+export interface UpstreamMetadata {
+  resolved_model_slug?: string;
+  model_slug?: string;
+  default_model_slug?: string;
+  cot_version?: string;
+  finish_details?: { type: string; stop_tokens?: number[] };
+  server_ttfvt_ms?: number;
+  request_id?: string;
+  is_complete?: boolean;
+}
 
 /**
  * Extracts plain text from an OpenAI content field, whether it is a string
@@ -240,20 +255,45 @@ export function buildUsageChunk(
   created: number,
   model: string,
   promptTokens: number,
-  completionTokens: number
+  completionTokens: number,
+  metadata?: UpstreamMetadata
 ): ChatCompletionChunk {
-  return {
+  const usage: ChatCompletionUsage = {
+    prompt_tokens: promptTokens,
+    completion_tokens: completionTokens,
+    total_tokens: promptTokens + completionTokens,
+    completion_tokens_details: {
+      reasoning_tokens: 0,
+      audio_tokens: 0,
+      accepted_prediction_tokens: 0,
+      rejected_prediction_tokens: 0,
+      text_tokens: completionTokens,
+    },
+    prompt_tokens_details: {
+      cached_tokens: 0,
+      audio_tokens: 0,
+      image_tokens: 0,
+      text_tokens: promptTokens,
+    },
+  };
+
+  const chunk: ChatCompletionChunk = {
     id,
     object: 'chat.completion.chunk',
     created,
     model,
     choices: [],
-    usage: {
-      prompt_tokens: promptTokens,
-      completion_tokens: completionTokens,
-      total_tokens: promptTokens + completionTokens,
-    },
+    usage,
   };
+
+  if (metadata?.resolved_model_slug) {
+    chunk.system_fingerprint = `fp_${metadata.resolved_model_slug}_${metadata.cot_version || 'v1'}`;
+  }
+  if (metadata?.request_id) {
+    chunk.x_request_id = metadata.request_id;
+  }
+
+  return chunk;
 }
 
 /**
@@ -266,9 +306,29 @@ export function buildOpenAICompletion(
   text: string,
   promptTokens: number,
   completionTokens: number,
-  finishReason: 'stop' | 'length' | null = 'stop'
+  finishReason: 'stop' | 'length' | null = 'stop',
+  metadata?: UpstreamMetadata
 ): ChatCompletionResponse {
-  return {
+  const usage: ChatCompletionUsage = {
+    prompt_tokens: promptTokens,
+    completion_tokens: completionTokens,
+    total_tokens: promptTokens + completionTokens,
+    completion_tokens_details: {
+      reasoning_tokens: 0,
+      audio_tokens: 0,
+      accepted_prediction_tokens: 0,
+      rejected_prediction_tokens: 0,
+      text_tokens: completionTokens,
+    },
+    prompt_tokens_details: {
+      cached_tokens: 0,
+      audio_tokens: 0,
+      image_tokens: 0,
+      text_tokens: promptTokens,
+    },
+  };
+
+  const response: ChatCompletionResponse = {
     id,
     object: 'chat.completion',
     created,
@@ -283,12 +343,17 @@ export function buildOpenAICompletion(
         finish_reason: finishReason ?? 'stop',
       },
     ],
-    usage: {
-      prompt_tokens: promptTokens,
-      completion_tokens: completionTokens,
-      total_tokens: promptTokens + completionTokens,
-    },
+    usage,
   };
+
+  if (metadata?.resolved_model_slug) {
+    response.system_fingerprint = `fp_${metadata.resolved_model_slug}_${metadata.cot_version || 'v1'}`;
+  }
+  if (metadata?.request_id) {
+    response.x_request_id = metadata.request_id;
+  }
+
+  return response;
 }
 
 /**
