@@ -723,13 +723,8 @@ export function createApp(options?: AppOptions) {
       const valid = await keyManager.validateKey(token);
       if (valid) {
         // Record usage asynchronously (don't block response)
-        // In Workers: use waitUntil; in Node: fire-and-forget
-        const recordPromise = keyManager.recordUsage(token);
-        if (c.executionCtx?.waitUntil) {
-          c.executionCtx.waitUntil(recordPromise);
-        } else {
-          recordPromise.catch(() => {}); // Ignore errors in background
-        }
+        // Fire-and-forget in both Workers and Node
+        keyManager.recordUsage(token).catch(() => {});
         return next();
       }
     }
