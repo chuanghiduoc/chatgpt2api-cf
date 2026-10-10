@@ -1,6 +1,7 @@
 import { SocksProxyAgent } from 'socks-proxy-agent';
 import { Agent as HttpsAgent } from 'node:https';
 import { Agent as HttpAgent } from 'node:http';
+import { Readable } from 'node:stream';
 
 interface ProxyState {
   url: string;
@@ -133,7 +134,14 @@ export class ProxyPool {
         ? await import('node:https')
         : await import('node:http');
 
+      const signal = init?.signal ?? undefined;
+
       return new Promise((resolve, reject) => {
+        if (signal?.aborted) {
+          reject(signal.reason);
+          return;
+        }
+
         const req = request(
           url,
           {
@@ -142,43 +150,56 @@ export class ProxyPool {
             agent: proxy.agent as unknown as HttpsAgent | HttpAgent,
           },
           (res) => {
-            const chunks: Buffer[] = [];
-            res.on('data', (chunk) => chunks.push(chunk));
-            res.on('end', () => {
-              const body = Buffer.concat(chunks);
-              const responseHeaders = new Headers();
-              for (const [key, value] of Object.entries(res.headers)) {
-                if (value) {
-                  if (Array.isArray(value)) {
-                    value.forEach((v) => responseHeaders.append(key, v));
-                  } else {
-                    responseHeaders.set(key, value);
-                  }
+            res.on('close', () => signal?.removeEventListener('abort', onAbort));
+
+            const responseHeaders = new Headers();
+            for (const [key, value] of Object.entries(res.headers)) {
+              if (value) {
+                if (Array.isArray(value)) {
+                  value.forEach((v) => responseHeaders.append(key, v));
+                } else {
+                  responseHeaders.set(key, value);
                 }
               }
+            }
 
-              const status = res.statusCode ?? 200;
+            const status = res.statusCode ?? 200;
 
-              // Track 429s for rotation
-              if (status === 429) {
-                this.reportRateLimit(proxy.url);
-              } else if (status >= 200 && status < 300) {
-                this.reportSuccess(proxy.url);
-              }
+            // Track 429s for rotation
+            if (status === 429) {
+              this.reportRateLimit(proxy.url);
+            } else if (status >= 200 && status < 300) {
+              this.reportSuccess(proxy.url);
+            }
 
-              resolve(
-                new Response(body, {
-                  status,
-                  statusText: res.statusMessage ?? '',
-                  headers: responseHeaders,
-                })
-              );
-            });
-            res.on('error', reject);
+            // Resolve on headers and hand the socket through as a stream, so SSE
+            // frames reach the client as they arrive instead of after upstream ends.
+            const hasNoBody = status === 204 || status === 304 || method === 'HEAD';
+            if (hasNoBody) {
+              res.resume();
+            }
+            // Cast: node:stream/web ReadableStream and the Workers-typed global differ only in typings.
+            const body = hasNoBody ? null : (Readable.toWeb(res) as unknown as ReadableStream<Uint8Array>);
+
+            resolve(
+              new Response(body, {
+                status,
+                statusText: res.statusMessage ?? '',
+                headers: responseHeaders,
+              })
+            );
           }
         );
 
-        req.on('error', reject);
+        const onAbort = () => {
+          req.destroy(signal?.reason instanceof Error ? signal.reason : new Error('Request aborted'));
+        };
+        signal?.addEventListener('abort', onAbort, { once: true });
+
+        req.on('error', (err) => {
+          signal?.removeEventListener('abort', onAbort);
+          reject(err);
+        });
 
         if (init?.body) {
           if (typeof init.body === 'string') {

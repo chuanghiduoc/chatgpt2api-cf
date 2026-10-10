@@ -1026,6 +1026,9 @@ export function createApp(options?: AppOptions) {
     c.header('x-device-id', selectedDeviceId);
 
     if (req.stream) {
+      // Disable buffering for Cloudflare/nginx proxies
+      c.header('X-Accel-Buffering', 'no');
+      c.header('Cache-Control', 'no-cache, no-transform');
       return streamSSE(c, async (sseStream) => {
         // Client read-idle keepalive: a long upstream wait (notably the
         // tool-request buffering window, where nothing may be emitted yet)
