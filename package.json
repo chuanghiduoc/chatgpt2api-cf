@@ -5,14 +5,19 @@
     "dev": "wrangler dev",
     "deploy": "wrangler deploy --minify",
     "cf-typegen": "wrangler types --env-interface CloudflareBindings",
-    "test": "vitest run"
+    "test": "vitest run",
+    "build:node": "tsc --noEmit -p tsconfig.node.json && esbuild src/server.ts --bundle --platform=node --format=esm --target=node24 --outfile=dist/server.mjs",
+    "start:node": "node dist/server.mjs"
   },
   "dependencies": {
+    "@hono/node-server": "^2.1.4",
     "eventsource-parser": "^4.1.0",
     "hono": "^4.13.5"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20260902.1",
+    "@types/node": "^24.19.2",
+    "esbuild": "0.28.1",
     "typescript": "^7.0.2",
     "vitest": "^4.1.11",
     "wrangler": "^4.110.0"

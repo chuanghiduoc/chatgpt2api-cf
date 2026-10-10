@@ -1,0 +1,10 @@
+{
+  // Type-checks the Node (Docker) entry point; the Worker code it imports is
+  // checked here too, against Workers types plus Node's.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": ["node"]
+  },
+  "include": ["src/server.ts", "src/filekv.ts", "src/filekv.test.ts", "worker-configuration.d.ts"],
+  "exclude": ["node_modules", "dist"]
+}
