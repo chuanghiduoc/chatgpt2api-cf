@@ -153,6 +153,25 @@ The worker's *egress* location (the IP region OpenAI sees) is controlled by the
 
 After changing it: `pnpm run deploy`. Effect is immediate; `cf-placement` tells you per-request where the Worker actually ran.
 
+### 6. Deploy with Docker (VPS)
+
+The same gateway runs on Node (`src/server.ts`). Workers KV is replaced by a JSON file in the `/data` volume. Every push to `main` builds and publishes `ghcr.io/<owner>/chatgpt2api-cf` via GitHub Actions (`.github/workflows/docker.yml`).
+
+```bash
+# on the VPS, next to docker-compose.yml
+cp .env.example .env        # set API_KEYS (required), DEVICE_POOL_SIZE, HOST_PORT
+docker compose pull
+docker compose up -d
+curl http://127.0.0.1:8787/healthz
+```
+
+- `API_KEYS` is mandatory in compose. A public VPS must not run an open proxy.
+- Run a **single** container per `/data` volume. The file store and the device-pool lock are per process.
+- The container serves plain HTTP on port 8787. Put your own reverse proxy (TLS) in front of it.
+- Egress is the VPS's own IP, so pick a region where ChatGPT is available.
+- GHCR packages are private by default. Either make the package public, or run `docker login ghcr.io` on the VPS.
+- Build locally instead: `docker build -t chatgpt2api-cf .`, or `pnpm run build:node && pnpm run start:node`.
+
 ---
 
 ## ⚙️ Configuration

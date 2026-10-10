@@ -8,7 +8,10 @@
     "lib": [
       "ESNext"
     ],
+    // Worker code must not see Node globals; the Node entry has tsconfig.node.json.
+    "types": [],
     "jsx": "react-jsx",
     "jsxImportSource": "hono/jsx"
   },
+  "exclude": ["node_modules", "dist", "src/server.ts", "src/filekv.ts", "src/filekv.test.ts"]
 }
