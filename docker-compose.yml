@@ -6,7 +6,10 @@ services:
       # Bind localhost only - use tunnel/nginx for public access
       - "127.0.0.1:${HOST_PORT:-8787}:8787"
     environment:
-      API_KEYS: ${API_KEYS:?set API_KEYS in .env}
+      # Static API keys (optional if using dynamic keys via /admin)
+      API_KEYS: ${API_KEYS:-}
+      # Admin key for /admin/* endpoints - REQUIRED for key management
+      ADMIN_KEY: ${ADMIN_KEY:?set ADMIN_KEY in .env}
       DEVICE_POOL_SIZE: ${DEVICE_POOL_SIZE:-3}
       # Multi-WARP proxy pool with auto-rotation on 429
       PROXY_URLS: ${PROXY_URLS:-}

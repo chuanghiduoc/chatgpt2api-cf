@@ -35,6 +35,15 @@ export class FileKV {
     return write;
   }
 
+  async delete(key: string): Promise<void> {
+    const data = await this.load();
+    delete data[key];
+    const snapshot = JSON.stringify(data);
+    const write = this.lastWrite.catch(() => {}).then(() => this.persist(snapshot));
+    this.lastWrite = write;
+    return write;
+  }
+
   private load(): Promise<Record<string, string>> {
     this.data ??= readFile(this.path, 'utf8').then(
       (raw) => JSON.parse(raw) as Record<string, string>,

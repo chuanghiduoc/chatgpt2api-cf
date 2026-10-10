@@ -17,6 +17,8 @@ import {
   type ResolvedImage,
 } from './image_parts';
 import { uploadImage, sniffImageMime, defaultExtensionForMime } from './upload';
+import { createAdminApp } from './admin';
+import { ApiKeyManager } from './apikeys';
 
 export interface AppOptions {
   client?: UpstreamClient;
@@ -672,18 +674,15 @@ export function createApp(options?: AppOptions) {
   app.use('*', cors());
 
   // Bearer token authentication middleware for API routes
+  // Checks both static env keys (API_KEYS) and dynamic KV-stored keys
   app.use('/v1/*', async (c, next) => {
-    const apiKeys = c.env?.API_KEYS?.trim();
-    if (!apiKeys) {
-      return next();
-    }
+    const staticKeys = c.env?.API_KEYS?.trim();
+    const adminKey = c.env?.ADMIN_KEY?.trim();
+    const hasStaticKeys = staticKeys && staticKeys.length > 0;
+    const hasAdminKey = adminKey && adminKey.length > 0;
 
-    const allowed = apiKeys
-      .split(',')
-      .map((k) => k.trim())
-      .filter(Boolean);
-
-    if (allowed.length === 0) {
+    // If no auth configured (no static keys and no admin key for dynamic keys), allow all
+    if (!hasStaticKeys && !hasAdminKey) {
       return next();
     }
 
@@ -710,21 +709,39 @@ export function createApp(options?: AppOptions) {
       );
     }
 
-    if (!allowed.includes(token)) {
-      return c.json(
-        {
-          error: {
-            message: 'Incorrect API key provided',
-            type: 'invalid_request_error',
-            code: 'invalid_api_key',
-          },
-        },
-        401
-      );
+    // Check static keys first (faster)
+    if (hasStaticKeys) {
+      const allowed = staticKeys.split(',').map((k) => k.trim()).filter(Boolean);
+      if (allowed.includes(token)) {
+        return next();
+      }
     }
 
-    return next();
+    // Check KV-stored dynamic keys (only if admin key is configured)
+    if (hasAdminKey && c.env?.CHATGPT_KV && token.startsWith('sk-')) {
+      const keyManager = new ApiKeyManager(c.env.CHATGPT_KV);
+      const valid = await keyManager.validateKey(token);
+      if (valid) {
+        // Record usage asynchronously (don't block response)
+        c.executionCtx?.waitUntil?.(keyManager.recordUsage(token));
+        return next();
+      }
+    }
+
+    return c.json(
+      {
+        error: {
+          message: 'Incorrect API key provided',
+          type: 'invalid_request_error',
+          code: 'invalid_api_key',
+        },
+      },
+      401
+    );
   });
+
+  // Mount admin routes for API key management
+  app.route('/admin', createAdminApp());
 
   // Global error handler: converts exceptions into OpenAI-formatted JSON
   app.onError((err, c) => {

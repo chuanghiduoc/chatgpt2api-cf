@@ -16,6 +16,7 @@
   },
   "vars": {
     "API_KEYS": "",
+    "ADMIN_KEY": "",
     "DEVICE_POOL_SIZE": "3"
   },
   "kv_namespaces": [

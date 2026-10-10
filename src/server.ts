@@ -21,6 +21,7 @@ const env: Env = {
   // the cast narrows nothing else — no other KV method is ever called.
   CHATGPT_KV: new FileKV(process.env.KV_FILE ?? DEFAULT_KV_FILE) as unknown as KVNamespace,
   API_KEYS: process.env.API_KEYS ?? '',
+  ADMIN_KEY: process.env.ADMIN_KEY ?? '',
   DEVICE_POOL_SIZE: process.env.DEVICE_POOL_SIZE ?? '3',
 };
 

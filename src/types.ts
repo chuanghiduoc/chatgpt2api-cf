@@ -171,5 +171,6 @@ export interface DevicePoolState {
 export interface Env {
   CHATGPT_KV: KVNamespace;
   API_KEYS?: string; // Comma separated allowed api keys (empty = public)
+  ADMIN_KEY?: string; // Admin key for /admin/* endpoints
   DEVICE_POOL_SIZE?: string; // Default "3"
 }
