@@ -743,7 +743,6 @@ export function createApp(options?: AppOptions) {
       status: 'ok',
       service: 'chatgpt2api-cf',
       models,
-      docs: 'https://github.com/6Kmfi6HP/chatgpt2api',
     });
   });
 

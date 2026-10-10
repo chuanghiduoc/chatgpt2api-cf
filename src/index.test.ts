@@ -125,14 +125,14 @@ describe('Hono Application (src/index.ts)', () => {
   });
 
   describe('Root and Health routes', () => {
-    it('GET / returns status, models and docs link', async () => {
+    it('GET / returns status and models without a docs link', async () => {
       const res = await app.request('/', { method: 'GET' }, mockEnv);
       expect(res.status).toBe(200);
       const data: any = await res.json();
       expect(data.status).toBe('ok');
       expect(data.service).toBe('chatgpt2api-cf');
       expect(data.models).toEqual(['gpt-5-5', 'gpt-5-6', 'auto']);
-      expect(data.docs).toBeDefined();
+      expect(data.docs).toBeUndefined();
     });
 
     it('GET /health returns { status: "ok" }', async () => {
