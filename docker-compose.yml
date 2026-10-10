@@ -5,11 +5,93 @@ services:
     ports:
       - "${HOST_PORT:-8787}:8787"
     environment:
-      # Required: a public VPS must not run an open proxy.
       API_KEYS: ${API_KEYS:?set API_KEYS in .env}
       DEVICE_POOL_SIZE: ${DEVICE_POOL_SIZE:-3}
+      # Multi-WARP proxy pool with auto-rotation on 429
+      PROXY_URLS: ${PROXY_URLS:-}
     volumes:
       - chatgpt2api-data:/data
+    depends_on:
+      warp1:
+        condition: service_healthy
+        required: false
+
+  # 10 Cloudflare WARP proxies for rate limit rotation
+  # Enable: docker compose --profile warp up -d
+  # Status: curl http://localhost:8787/proxy-status
+  warp1:
+    image: caomingjun/warp:latest
+    restart: unless-stopped
+    profiles: [warp]
+    environment:
+      WARP_AGREE_TOS: ${WARP_AGREE_TOS:-no}
+    cap_add: [NET_ADMIN]
+    sysctls:
+      - net.ipv6.conf.all.disable_ipv6=0
+      - net.ipv4.conf.all.src_valid_mark=1
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "--socks5", "127.0.0.1:1080", "https://cloudflare.com/cdn-cgi/trace"]
+      interval: 15s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    volumes:
+      - warp1-data:/var/lib/cloudflare-warp
+
+  warp2:
+    extends: { service: warp1 }
+    volumes:
+      - warp2-data:/var/lib/cloudflare-warp
+
+  warp3:
+    extends: { service: warp1 }
+    volumes:
+      - warp3-data:/var/lib/cloudflare-warp
+
+  warp4:
+    extends: { service: warp1 }
+    volumes:
+      - warp4-data:/var/lib/cloudflare-warp
+
+  warp5:
+    extends: { service: warp1 }
+    volumes:
+      - warp5-data:/var/lib/cloudflare-warp
+
+  warp6:
+    extends: { service: warp1 }
+    volumes:
+      - warp6-data:/var/lib/cloudflare-warp
+
+  warp7:
+    extends: { service: warp1 }
+    volumes:
+      - warp7-data:/var/lib/cloudflare-warp
+
+  warp8:
+    extends: { service: warp1 }
+    volumes:
+      - warp8-data:/var/lib/cloudflare-warp
+
+  warp9:
+    extends: { service: warp1 }
+    volumes:
+      - warp9-data:/var/lib/cloudflare-warp
+
+  warp10:
+    extends: { service: warp1 }
+    volumes:
+      - warp10-data:/var/lib/cloudflare-warp
 
 volumes:
   chatgpt2api-data:
+  warp1-data:
+  warp2-data:
+  warp3-data:
+  warp4-data:
+  warp5-data:
+  warp6-data:
+  warp7-data:
+  warp8-data:
+  warp9-data:
+  warp10-data:
